@@ -1,103 +1,156 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import ProjectCard from '@/components/ProjectCard';
+import { Project } from '@/types/project';
+
+function getProjects(): Promise<{ projects: Project[]; error?: string }> {
+  return fetch('/api/projects', {
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+    .then((res) => {
+      if (!res.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      return res.json();
+    })
+    .then((projects) => ({ projects }))
+    .catch((error) => {
+      console.error('Error fetching projects:', error);
+      return { 
+        projects: [],
+        error: 'Failed to load projects. Please try again later.' 
+      };
+    });
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [category, setCategory] = useState<string>('All');
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // Set up global filter state handlers
+  useEffect(() => {
+    // Make these handlers available globally
+    window.handleCategoryChange = (newCategory: string) => {
+      setCategory(newCategory);
+    };
+    
+    window.handleSortChange = (newSortBy: string) => {
+      setSortBy(newSortBy);
+    };
+    
+    window.handleSearchChange = (newSearchQuery: string) => {
+      setSearchQuery(newSearchQuery);
+    };
+    
+    return () => {
+      // Clean up global handlers - using type assertion to avoid TypeScript errors
+      window.handleCategoryChange = undefined as any;
+      window.handleSortChange = undefined as any;
+      window.handleSearchChange = undefined as any;
+    };
+  }, []);
+
+  // Fetch projects on component mount
+  useEffect(() => {
+    setIsLoading(true);
+    getProjects()
+      .then(({ projects, error }) => {
+        setProjects(projects);
+        setFilteredProjects(projects);
+        if (error) setError(error);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Apply filters and sorting whenever any filter criteria changes
+  useEffect(() => {
+    let result = [...projects];
+
+    // Apply category filter (assuming projectType is the category field)
+    if (category !== 'All') {
+      result = result.filter(project => project.projectType === category);
+    }
+
+    // Apply search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(project => 
+        project.title.toLowerCase().includes(query) || 
+        project.description.toLowerCase().includes(query)
+      );
+    }
+
+    // Apply sorting
+    result = result.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'popular':
+          // Assuming there's a views field, or fallback to 0
+          return ((b as any).views || 0) - ((a as any).views || 0);
+        case 'price-low':
+          return a.price - b.price;
+        case 'price-high':
+          return b.price - a.price;
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredProjects(result);
+  }, [projects, category, sortBy, searchQuery]);
+
+  return (
+    <div className="w-full">
+      <div className="w-full">
+        <div className="max-w-7xl mx-auto">
+          
+
+          <div className="mt-12">
+            {isLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+              </div>
+            ) : error ? (
+              <div className="text-center text-red-600 dark:bg-red-950/30 bg-red-50 p-4 rounded-lg">
+                {error}
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="text-center dark:text-gray-400 text-gray-500 p-10 rounded-lg dark:bg-gray-800/50 bg-gray-100/50">
+                {searchQuery || category !== 'All' ? 
+                  'No projects match your current filters.' : 
+                  'No projects available yet.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredProjects.map((project) => (
+                  <ProjectCard key={project._id} project={project} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
+}
+
+// Add TypeScript declaration for global filter handlers
+declare global {
+  interface Window {
+    handleCategoryChange: (category: string) => void;
+    handleSortChange: (sortBy: string) => void;
+    handleSearchChange: (searchQuery: string) => void;
+  }
 }

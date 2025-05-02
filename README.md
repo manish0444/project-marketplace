@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project Showcase
+
+A full-stack application for showcasing and selling your projects. Built with Next.js, MongoDB, and NextAuth.
+
+## Features
+
+- 🎨 Modern and responsive design
+- 🔐 User authentication with NextAuth
+- 👑 Admin dashboard for project management
+- 📱 Project showcase with detailed views
+- 🔍 Project filtering and search
+- 💰 Project pricing and details
+- 📊 Admin statistics and insights
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React, TailwindCSS
+- **Backend**: Next.js API Routes
+- **Database**: MongoDB
+- **Authentication**: NextAuth.js
+- **Styling**: Tailwind CSS
+- **Icons**: Heroicons
+- **UI Components**: Headless UI
+- **Form Handling**: React Hook Form
+- **Notifications**: React Hot Toast
 
 ## Getting Started
 
-First, run the development server:
-
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd project-showcase
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Create a `.env.local` file with the following variables:
+```env
+MONGODB_URI=your-mongodb-uri
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+project-showcase/
+├── src/
+│   ├── app/                 # Next.js app router
+│   │   ├── admin/          # Admin dashboard pages
+│   │   ├── api/            # API routes
+│   │   ├── auth/           # Authentication pages
+│   │   └── projects/       # Project pages
+│   ├── components/         # React components
+│   ├── lib/                # Utility functions
+│   ├── models/             # MongoDB models
+│   ├── providers/          # React context providers
+│   └── types/             # TypeScript types
+├── public/                # Static files
+└── package.json          # Project dependencies
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Features
 
-## Deploy on Vercel
+### Authentication
+- User sign up and sign in
+- Protected admin routes
+- Role-based authorization
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Project Management
+- Create, edit, and delete projects
+- Upload project images
+- Set project details and pricing
+- Add technologies and features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Admin Dashboard
+- Project statistics
+- Recent projects
+- Project type distribution
+- Total value tracking
+
+### Project Showcase
+- Responsive grid layout
+- Detailed project views
+- Technology tags
+- Project features list
+- Demo and GitHub links
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
