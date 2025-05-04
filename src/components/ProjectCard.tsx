@@ -78,7 +78,7 @@ export default function ProjectCard({ project, index = 0 }: ProjectCardProps) {
     >
       {/* Clickable overlay for entire card */}
       <Link 
-        href={`/projects/${project._id}`} 
+        href={`/projects/${project.slug || project._id}`} 
         className="absolute inset-0 z-10" 
         aria-label={`View ${project.title} project`}
       />
