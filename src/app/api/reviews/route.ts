@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
 
 // POST handler for creating a review
 export async function POST(request: NextRequest) {
+  console.log('POST request to /api/reviews received');
   try {
     await connectDB();
     
@@ -76,6 +77,8 @@ export async function POST(request: NextRequest) {
     // Get request data
     const data = await request.json();
     const { projectId, rating, comment, userId, email } = data;
+    
+    console.log('Review data received:', { projectId, rating, comment, userId, email });
     
     // Handle missing user ID by trying to find the user by email
     let actualUserId = session.user.id;
@@ -188,7 +191,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: false,
       message: 'Failed to submit review',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace available',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }

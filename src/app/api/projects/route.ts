@@ -15,6 +15,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('POST request to /api/projects received');
   try {
     const { getServerSession } = await import('next-auth/next');
     const authOptions = await import('../auth/[...nextauth]/route');
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
     await connectDB();
     const formData = await request.formData();
     
+    // Log form data keys for debugging
+    console.log('Form data keys:', [...formData.keys()]);
+    
     // Handle file uploads
     const imageFiles = formData.getAll('imageFiles');
     const { saveFile } = await import('@/lib/upload');
@@ -34,8 +38,15 @@ export async function POST(request: NextRequest) {
     
     for (const file of imageFiles) {
       if (file instanceof File) {
-        const imageUrl = await saveFile(file);
-        imageUrls.push(imageUrl);
+        console.log(`Processing image file: ${file.name}, size: ${file.size} bytes`);
+        try {
+          const imageUrl = await saveFile(file);
+          imageUrls.push(imageUrl);
+          console.log(`Successfully uploaded image: ${imageUrl}`);
+        } catch (uploadError) {
+          console.error('Error uploading image file:', uploadError);
+          // Continue with other files even if one fails
+        }
       }
     }
     
@@ -43,14 +54,28 @@ export async function POST(request: NextRequest) {
     let projectFilePath = null;
     const projectFile = formData.get('projectFile');
     if (projectFile instanceof File) {
-      projectFilePath = await saveFile(projectFile, 'projects');
+      console.log(`Processing project file: ${projectFile.name}, size: ${projectFile.size} bytes`);
+      try {
+        projectFilePath = await saveFile(projectFile, 'projects');
+        console.log(`Successfully uploaded project file: ${projectFilePath}`);
+      } catch (uploadError) {
+        console.error('Error uploading project file:', uploadError);
+        // Continue even if project file upload fails
+      }
     }
     
     // Handle QR code upload
     let qrCodePath = null;
     const qrCodeFile = formData.get('qrCodeFile');
     if (qrCodeFile instanceof File) {
-      qrCodePath = await saveFile(qrCodeFile, 'qrcodes');
+      console.log(`Processing QR code file: ${qrCodeFile.name}, size: ${qrCodeFile.size} bytes`);
+      try {
+        qrCodePath = await saveFile(qrCodeFile, 'qrcodes');
+        console.log(`Successfully uploaded QR code: ${qrCodePath}`);
+      } catch (uploadError) {
+        console.error('Error uploading QR code file:', uploadError);
+        // Continue even if QR code upload fails
+      }
     }
 
     // Get other form data
@@ -72,8 +97,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(project, { status: 201 });
   } catch (error: unknown) {
     console.error('Error creating project:', error);
+    // Provide more detailed error information
     const message = error instanceof Error ? error.message : 'Failed to create project';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const errorDetails = error instanceof Error ? error.stack : 'No stack trace available';
+    
+    return NextResponse.json({ 
+      error: message, 
+      details: errorDetails,
+      timestamp: new Date().toISOString() 
+    }, { status: 500 });
   }
 }
 

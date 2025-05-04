@@ -5,10 +5,7 @@ import connectDB from '@/lib/mongodb';
 import Purchase from '@/models/Purchase';
 import Project from '@/models/Project';
 import { GET as authOptions } from '../auth/[...nextauth]/route';
-import { writeFile } from 'fs/promises';
-import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import fs from 'fs';
 import { getCurrentUserId } from '@/lib/user';
 import mongoose from 'mongoose';
 
@@ -24,6 +21,7 @@ interface ExtendedSession extends Session {
 
 // Create a new purchase
 export async function POST(request: NextRequest) {
+  console.log('POST request to /api/purchases received');
   try {
     await connectDB();
     
@@ -51,9 +49,17 @@ export async function POST(request: NextRequest) {
     
     // Parse the form data
     const formData = await request.formData();
+    
+    // Log form data keys for debugging
+    console.log('Form data keys:', [...formData.keys()]);
+    
     const projectId = formData.get('projectId')?.toString();
     const paymentProofFile = formData.get('paymentProof') as File;
     const deliveryEmail = formData.get('deliveryEmail') as string;
+    
+    console.log('Project ID:', projectId);
+    console.log('Payment proof file:', paymentProofFile ? `${paymentProofFile.name} (${paymentProofFile.size} bytes)` : 'Not provided');
+    console.log('Delivery email:', deliveryEmail);
     
     if (!projectId || !paymentProofFile) {
       return NextResponse.json({ 
@@ -93,23 +99,16 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
     
-    // Save payment proof image
-    const bytes = await paymentProofFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    // Create a unique filename using uuid
-    const filename = `payment-proof-${uuidv4()}-${paymentProofFile.name.replace(/\s+/g, '-')}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments');
-    const filePath = path.join(uploadDir, filename);
-    
-    // Ensure the upload directory exists
+    // Save payment proof image using cloud storage
+    console.log('Uploading payment proof to storage...');
+    let fileUrl;
     try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
+      // Import the saveFile function from our cloud storage utility
+      const { saveFile } = await import('@/lib/upload');
       
-      await writeFile(filePath, buffer);
-      const fileUrl = `/uploads/payments/${filename}`;
+      // Upload the file to cloud storage
+      fileUrl = await saveFile(paymentProofFile, 'payments');
+      console.log('Payment proof uploaded successfully:', fileUrl);
       
       // Create purchase record
       const purchase = await Purchase.create({
@@ -130,7 +129,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ 
         success: false, 
         message: 'Failed to save payment proof',
-        error: fileError instanceof Error ? fileError.message : 'Unknown error'
+        error: fileError instanceof Error ? fileError.message : 'Unknown error',
+        stack: fileError instanceof Error ? fileError.stack : 'No stack trace available',
+        timestamp: new Date().toISOString()
       }, { status: 500 });
     }
   } catch (error) {
@@ -138,7 +139,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: false, 
       message: 'Failed to submit purchase',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace available',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }

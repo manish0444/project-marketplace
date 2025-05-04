@@ -16,6 +16,7 @@ interface ExtendedSession extends Session {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('POST request to /api/comments received');
   try {
     await connectDB();
     
@@ -97,7 +98,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: false, 
       message: 'Failed to create comment',
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace available',
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }

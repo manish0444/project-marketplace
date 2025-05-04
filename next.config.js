@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Enable output export for static hosting if needed
+  // output: 'export',
+  // Set the base path if your site is not hosted at the root
+  // basePath: '',
+  // Set trailing slash preference
+  trailingSlash: false,
   reactStrictMode: true,
   // Disable ESLint during build to bypass ESLint configuration issues
   eslint: {
@@ -14,6 +20,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
       },
     ],
     unoptimized: true, // Allow serving local images without optimization
@@ -37,16 +47,44 @@ const nextConfig = {
             key: 'Access-Control-Allow-Headers',
             value: 'X-Requested-With, Content-Type, Authorization',
           },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600, s-maxage=86400',
+          },
+        ],
+      },
+      {
+        // Special headers for API routes
+        source: '/api/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'X-Requested-With, Content-Type, Authorization',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
         ],
       },
     ];
   },
-  // Increase body parser size limit for file uploads
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-    responseLimit: '10mb',
+  // Configure API settings
+  experimental: {
+    serverComponentsExternalPackages: ['cloudinary'],
+  },
+  webpack: (config) => {
+    // Add support for cloudinary in server components
+    config.externals = [...config.externals, 'cloudinary'];
+    return config;
   },
 }
 
