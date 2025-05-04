@@ -4,20 +4,44 @@ import { Metadata, ResolvingMetadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 
-async function getProject(id: string): Promise<Project> {
+async function getProject(idOrSlug: string): Promise<Project | null> {
   // Use absolute URL to ensure API works in all environments
   const apiBaseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-  const absoluteUrl = `${apiBaseUrl}/api/projects/${id}`;
   
-  // Add caching for improved performance
-  const res = await fetch(absoluteUrl, {
-    next: { revalidate: 60 } // Revalidate every 60 seconds
-  });
-  
-  if (!res.ok) {
-    throw new Error('Failed to fetch project');
+  // Try to fetch by slug first
+  try {
+    const slugUrl = `${apiBaseUrl}/api/projects/by-slug/${idOrSlug}`;
+    
+    const slugRes = await fetch(slugUrl, {
+      next: { revalidate: 60 }
+    });
+    
+    if (slugRes.ok) {
+      return slugRes.json();
+    }
+  } catch (error) {
+    console.error('Error fetching by slug:', error);
   }
-  return res.json();
+  
+  // For backward compatibility only, try to fetch by ID if slug lookup fails
+  // This will be removed in a future update
+  try {
+    const absoluteUrl = `${apiBaseUrl}/api/projects/${idOrSlug}`;
+    
+    // Add caching for improved performance
+    const res = await fetch(absoluteUrl, {
+      next: { revalidate: 60 } // Revalidate every 60 seconds
+    });
+    
+    if (res.ok) {
+      return res.json();
+    }
+  } catch (error) {
+    console.error('Error fetching by ID:', error);
+  }
+  
+  // If both lookups fail, return null
+  return null;
 }
 
 // Props for the page component and metadata generator
@@ -30,12 +54,19 @@ export async function generateMetadata(
   { params }: PageProps,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  // Get the project ID from params
+  // Get the project ID or slug from params
   const { id } = params;
   
   try {
     // Fetch project data
     const project = await getProject(id);
+    
+    if (!project) {
+      return {
+        title: 'Project Not Found | Project Showcase',
+        description: 'The requested project could not be found.',
+      };
+    }
     
     // Get parent metadata (e.g., from layout)
     const previousImages = (await parent).openGraph?.images || [];
@@ -59,7 +90,7 @@ export async function generateMetadata(
 }
 
 export default async function ProjectDetails({ params }: PageProps) {
-  // Get the project ID from params
+  // Get the project ID or slug from params
   const { id } = params;
   
   try {
@@ -73,7 +104,9 @@ export default async function ProjectDetails({ params }: PageProps) {
     
     // Calculate base URL for absolute URLs
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    const projectUrl = `${baseUrl}/projects/${id}`;
+    // Use slug if available, otherwise use ID for the URL
+    const urlPath = project.slug || id;
+    const projectUrl = `${baseUrl}/projects/${urlPath}`;
     
     // Get the first image or a placeholder
     const mainImage = project.images && project.images.length > 0 

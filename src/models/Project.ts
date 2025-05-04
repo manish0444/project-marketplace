@@ -6,6 +6,12 @@ const projectSchema = new mongoose.Schema({
     required: [true, 'Title is required'],
     trim: true,
   },
+  slug: {
+    type: String,
+    trim: true,
+    unique: true,
+    sparse: true, // Allows multiple null values (for older records)
+  },
   description: {
     type: String,
     required: [true, 'Description is required'],
@@ -90,9 +96,25 @@ const projectSchema = new mongoose.Schema({
   },
 });
 
-// Update the timestamp on save
+// Function to generate slug from title
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric chars with hyphens
+    .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+    .substring(0, 100); // Limit length
+}
+
+// Update the timestamp and generate slug on save
 projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  
+  // Generate slug from title if not already set
+  if (this.title && (!this.slug || this.isModified('title'))) {
+    const baseSlug = generateSlug(this.title);
+    this.slug = baseSlug;
+  }
+  
   next();
 });
 

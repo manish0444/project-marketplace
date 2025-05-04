@@ -3,11 +3,14 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/ge
 
 // Type for SEO generation request
 interface SeoGenerationRequest {
-  title: string;
-  description: string;
-  projectType: string;
-  technologies: string[];
-  features: string[];
+  // Original fields for backward compatibility
+  title?: string;
+  description?: string;
+  projectType?: string;
+  technologies?: string[];
+  features?: string[];
+  // New field for direct prompt passing
+  prompt?: string;
 }
 
 // Type for SEO generation response
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
     let data: SeoGenerationRequest;
     try {
       data = await req.json();
-      console.log('Request data:', JSON.stringify(data));
+      console.log('Request data received');
     } catch (parseError) {
       console.error('Error parsing request JSON:', parseError);
       return NextResponse.json(
@@ -50,13 +53,11 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const { title, description, projectType, technologies, features } = data;
-
-    // Basic validation
-    if (!title || !description) {
+    // Check if we have either a prompt or the required fields
+    if (!data.prompt && (!data.title || !data.description)) {
       console.error('Missing required fields');
       return NextResponse.json(
-        { success: false, message: 'Title and description are required' },
+        { success: false, message: 'Either prompt or title and description are required' },
         { status: 400 }
       );
     }
@@ -86,32 +87,41 @@ export async function POST(req: NextRequest) {
         },
       ];
       
+      // Use the correct model name for the API version
       const model = genAI.getGenerativeModel({ 
-        model: "gemini-pro",
+        model: "gemini-1.5-pro", // Updated from gemini-pro to gemini-1.5-pro
         safetySettings
       });
 
-      // Build prompt for SEO generation
-      console.log('Building prompt');
-      const prompt = `
-      You are an SEO expert. Generate optimized SEO content for the following project.
-      Respond ONLY with a valid JSON object containing the requested fields.
+      // Use provided prompt or build one if not provided
+      console.log('Preparing prompt');
+      let prompt: string;
       
-      Project Title: ${title}
-      Project Description: ${description}
-      Project Type: ${projectType}
-      Technologies: ${technologies.join(', ')}
-      Features: ${features.join(', ')}
-      
-      The response must be a valid JSON object with the following structure and nothing else:
-      {
-        "title": "An SEO-optimized title under 60 characters",
-        "description": "An SEO-optimized meta description under 160 characters",
-        "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-        "category": "Best matching product category",
-        "socialMediaDescription": "A catchy social media description under 200 characters"
+      if (data.prompt) {
+        // Use the provided prompt directly
+        prompt = data.prompt;
+      } else {
+        // Build a default prompt from the provided fields
+        prompt = `
+        You are an SEO expert. Generate optimized SEO content for the following project.
+        Respond ONLY with a valid JSON object containing the requested fields.
+        
+        Project Title: ${data.title || ''}
+        Project Description: ${data.description || ''}
+        Project Type: ${data.projectType || ''}
+        Technologies: ${data.technologies?.join(', ') || ''}
+        Features: ${data.features?.join(', ') || ''}
+        
+        The response must be a valid JSON object with the following structure and nothing else:
+        {
+          "title": "An SEO-optimized title under 60 characters",
+          "description": "An SEO-optimized meta description under 160 characters",
+          "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+          "category": "Best matching product category",
+          "socialMediaDescription": "A catchy social media description under 200 characters"
+        }
+        `;
       }
-      `;
 
       // Generate content with Gemini AI
       console.log('Calling Gemini API');
@@ -182,6 +192,11 @@ export async function POST(req: NextRequest) {
       console.error('AI processing error:', aiProcessingError);
       
       // Create default SEO content as fallback
+      const title = data.title || '';
+      const description = data.description || '';
+      const projectType = data.projectType || '';
+      const technologies = data.technologies || [];
+      
       const defaultSeoData: SeoGenerationResponse = {
         title: title.length > 60 ? title.substring(0, 57) + '...' : title,
         description: description.length > 160 ? description.substring(0, 157) + '...' : description,

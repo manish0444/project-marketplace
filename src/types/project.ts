@@ -7,6 +7,7 @@ export interface ProjectRating {
 export interface Project {
   _id: string;
   title: string;
+  slug?: string; // URL-friendly version of the title
   description: string;
   price: number;
   images: string[];

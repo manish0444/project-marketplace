@@ -247,12 +247,40 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
     setIsSeoGenerating(true);
     
     try {
+      const prompt = `
+      You are an SEO expert specializing in technology and software projects. Generate professional, marketing-focused SEO content for the following project.
+      Respond ONLY with a valid JSON object containing the requested fields.
+      
+      Project Title: ${formData.title}
+      Project Description: ${formData.description}
+      Project Type: ${formData.projectType}
+      Technologies: ${formData.technologies.join(', ')}
+      Features: ${formData.features.join(', ')}
+      
+      IMPORTANT INSTRUCTIONS:
+      1. Create a title that is DIFFERENT from the original project title but captures its essence and includes high-value SEO keywords
+      2. Write a description that is more marketing-focused than the original description
+      3. Focus on benefits and unique selling points in the description
+      4. Include relevant industry terms and technical keywords
+      5. Make the social media description engaging and shareable
+      
+      The response must be a valid JSON object with the following structure and nothing else:
+      {
+        "title": "A professional, SEO-optimized title under 60 characters that is DIFFERENT from the original title",
+        "description": "A marketing-focused meta description under 160 characters highlighting benefits and unique selling points",
+        "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+        "category": "Best matching product category or industry vertical",
+        "socialMediaDescription": "An engaging, shareable social media pitch under 200 characters"
+      }
+      `;
+
       const response = await fetch('/api/ai/seo', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          prompt: prompt,
           title: formData.title,
           description: formData.description,
           projectType: formData.projectType,

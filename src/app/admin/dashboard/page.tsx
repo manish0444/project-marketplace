@@ -7,19 +7,38 @@ import {
   PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
 
+import { connectToDatabase } from '@/lib/mongodb';
+
 async function getStats() {
-  // Get the base URL for API calls
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Connect to database directly instead of using fetch
+  const mongo = await connectToDatabase();
+  const db = mongo.connection.db;
   
-  // Fetch projects
+  // Fetch projects directly from database
   let projects: Project[] = [];
   let totalProjects = 0;
   try {
-    const projectsRes = await fetch(`${baseUrl}/api/projects`, { 
-      cache: 'no-store'
-    });
-    if (projectsRes.ok) {
-      projects = await projectsRes.json();
+    if (db) {
+      const projectDocs = await db.collection('projects').find({}).toArray();
+      
+      // Convert MongoDB documents to Project objects
+      projects = projectDocs.map(doc => ({
+        _id: doc._id.toString(),
+        title: doc.title,
+        slug: doc.slug,
+        description: doc.description,
+        price: doc.price,
+        images: doc.images,
+        technologies: doc.technologies,
+        projectType: doc.projectType,
+        features: doc.features,
+        category: doc.category,
+        demoUrl: doc.demoUrl,
+        githubUrl: doc.githubUrl,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      }));
+      
       totalProjects = projects.length;
       console.log('Projects fetched:', totalProjects);
     }
@@ -27,61 +46,34 @@ async function getStats() {
     console.error('Error fetching projects:', error);
   }
   
-  // Fetch purchases (only count approved ones)
+  // Fetch approved purchases directly from database
   let approvedPurchases = 0;
   try {
-    const purchasesRes = await fetch(`${baseUrl}/api/purchases?status=approved`, {
-      cache: 'no-store'
-    });
-    
-    if (purchasesRes.ok) {
-      const purchasesData = await purchasesRes.json();
-      console.log('Purchases data:', purchasesData);
-      if (purchasesData.success && Array.isArray(purchasesData.purchases)) {
-        approvedPurchases = purchasesData.purchases.length;
-      }
+    if (db) {
+      approvedPurchases = await db.collection('purchases').countDocuments({ status: 'approved' });
+      console.log('Approved purchases count:', approvedPurchases);
     }
   } catch (error) {
     console.error('Error fetching purchases:', error);
   }
   
-  // Fetch reviews
+  // Fetch reviews directly from database
   let totalReviews = 0;
   try {
-    const reviewsRes = await fetch(`${baseUrl}/api/reviews`, {
-      cache: 'no-store'
-    });
-    
-    if (reviewsRes.ok) {
-      const reviewsData = await reviewsRes.json();
-      console.log('Reviews data:', reviewsData);
-      if (reviewsData.success && Array.isArray(reviewsData.reviews)) {
-        totalReviews = reviewsData.reviews.length;
-      } else if (Array.isArray(reviewsData)) {
-        // Handle case where API returns array directly
-        totalReviews = reviewsData.length;
-      }
+    if (db) {
+      totalReviews = await db.collection('reviews').countDocuments({});
+      console.log('Total reviews count:', totalReviews);
     }
   } catch (error) {
     console.error('Error fetching reviews:', error);
   }
   
-  // Fetch users
+  // Fetch users directly from database
   let totalUsers = 0;
   try {
-    const usersRes = await fetch(`${baseUrl}/api/users`, {
-      cache: 'no-store'
-    });
-    
-    if (usersRes.ok) {
-      const usersData = await usersRes.json();
-      console.log('Users data:', usersData);
-      if (usersData.success && Array.isArray(usersData.users)) {
-        totalUsers = usersData.users.length;
-      } else if (Array.isArray(usersData)) {
-        // Handle case where API returns array directly
-        totalUsers = usersData.length;
-      }
+    if (db) {
+      totalUsers = await db.collection('users').countDocuments({});
+      console.log('Total users count:', totalUsers);
     }
   } catch (error) {
     console.error('Error fetching users:', error);
