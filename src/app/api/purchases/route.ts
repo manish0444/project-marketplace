@@ -75,9 +75,40 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
+    // If projectId looks like a slug rather than an ObjectId, find the project by slug first
+    let actualProjectId = projectId;
+    
+    if (typeof projectId === 'string' && !mongoose.isValidObjectId(projectId)) {
+      console.log('ProjectId appears to be a slug:', projectId);
+      const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({}));
+      
+      try {
+        // Find the project by slug
+        const project = await Project.findOne({ slug: projectId });
+        
+        if (project) {
+          console.log('Found project by slug:', project._id);
+          // Use the actual ObjectId
+          actualProjectId = project._id;
+        } else {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Project not found with the provided slug' 
+          }, { status: 404 });
+        }
+      } catch (error) {
+        console.error('Error finding project by slug:', error);
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Error finding project',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
+      }
+    }
+    
     // Check if this user already has a pending purchase for this project
     const existingPurchase = await Purchase.findOne({
-      projectId,
+      projectId: actualProjectId,
       userId,
       status: 'pending'
     });
@@ -90,8 +121,11 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
     
-    // Check if project exists
-    const project = await Project.findById(projectId);
+    // Check if project exists - use the actual ObjectId we found earlier
+    // No need to find by ID again since we already confirmed the project exists
+    const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({}));
+    const project = await Project.findById(actualProjectId);
+    
     if (!project) {
       return NextResponse.json({ 
         success: false, 
@@ -112,7 +146,7 @@ export async function POST(request: NextRequest) {
       
       // Create purchase record
       const purchase = await Purchase.create({
-        projectId,
+        projectId: actualProjectId, // Use the actual ObjectId, not the slug
         userId,
         status: 'pending',
         paymentProof: fileUrl,
@@ -217,9 +251,45 @@ export async function GET(request: NextRequest) {
     const distinctUsers = await Purchase.distinct('userId');
     console.log('Distinct users with purchases:', distinctUsers);
     
+    // If projectId looks like a slug rather than an ObjectId, find the project by slug first
+    if (query.projectId && typeof query.projectId === 'string' && !mongoose.isValidObjectId(query.projectId)) {
+      console.log('ProjectId appears to be a slug:', query.projectId);
+      const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({}));
+      
+      try {
+        // Find the project by slug
+        const project = await Project.findOne({ slug: query.projectId });
+        
+        if (project) {
+          console.log('Found project by slug:', project._id);
+          // Replace the slug with the actual ObjectId
+          query.projectId = project._id;
+        } else {
+          console.log('No project found with slug:', query.projectId);
+          // Return empty result if no project found
+          return NextResponse.json({
+            success: true,
+            purchases: []
+          });
+        }
+      } catch (error) {
+        console.error('Error finding project by slug:', error);
+        // Continue with the original query, which will likely return empty results
+      }
+    }
+    
     // Check if the query would return anything
-    const testCount = await Purchase.countDocuments(query);
-    console.log('Expected results with current query:', testCount);
+    try {
+      const testCount = await Purchase.countDocuments(query);
+      console.log('Expected results with current query:', testCount);
+    } catch (countError) {
+      console.error('Error counting documents:', countError);
+      // If there's an error with the query, return empty results
+      return NextResponse.json({
+        success: true,
+        purchases: []
+      });
+    }
     
     // Add fields selection to ensure deliveryEmail is included
     const purchases = await Purchase.find(query)

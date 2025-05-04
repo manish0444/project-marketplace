@@ -45,16 +45,28 @@ export default function CommentSection({ projectId }: CommentSectionProps) {
   async function fetchComments() {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/comments?projectId=${projectId}`);
+      console.log(`Fetching comments for project ID: ${projectId}`);
+      
+      const response = await fetch(`/api/comments?projectId=${projectId}`, {
+        credentials: 'include' // Include cookies with the request
+      });
+      
+      console.log('Comments API response status:', response.status);
       const data = await response.json();
+      console.log('Comments API response:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch comments');
+        // Log the error details but don't throw
+        console.error('Failed to fetch comments:', data);
+        setComments([]);
+        return;
       }
 
       if (data.success && Array.isArray(data.comments)) {
+        console.log(`Loaded ${data.comments.length} comments`);
         setComments(data.comments);
       } else {
+        console.log('No comments found or invalid response format');
         setComments([]);
       }
     } catch (error) {
@@ -92,6 +104,8 @@ export default function CommentSection({ projectId }: CommentSectionProps) {
         parentId: replyTo,
       };
       
+      console.log('Sending comment data:', commentData);
+      
       // Send request to API with credentials
       const response = await fetch('/api/comments', {
         method: 'POST',
@@ -102,10 +116,16 @@ export default function CommentSection({ projectId }: CommentSectionProps) {
         credentials: 'include', // Include cookies with the request
       });
 
+      console.log('Comment API response status:', response.status);
       const data = await response.json();
+      console.log('Comment API response:', data);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to post comment');
+        // Log the error details but don't throw
+        console.error('Comment submission failed:', data);
+        toast.error('Failed to post comment. Please try again.');
+        setIsSubmitting(false);
+        return;
       }
 
       if (data.success) {

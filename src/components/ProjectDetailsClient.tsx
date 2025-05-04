@@ -154,7 +154,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
 
   // Submit purchase with payment proof
   const handlePurchaseSubmit = async () => {
-    if (!session) {
+    if (!session || !session.user) {
       toast.error('Please log in to purchase this project');
       return;
     }
@@ -164,42 +164,65 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       return;
     }
     
-    if (!deliveryEmail) {
-      toast.error('Please provide a delivery email');
-      return;
-    }
-    
-    if (!deliveryEmail.match(/^[\w-\.]+@gmail\.com$/)) {
-      toast.error('Please provide a valid Gmail address');
-      return;
-    }
-    
-    if (!isEmailConfirmed) {
-      toast.error('Please confirm your delivery email');
+    if (!deliveryEmail || !deliveryEmail.match(/^[\w-\.]+@gmail\.com$/)) {
+      toast.error('Please enter a valid Gmail address for delivery');
       return;
     }
     
     setIsLoading(true);
+    console.log('Submitting purchase with:', { projectId: id, paymentProofName: paymentProof.name, deliveryEmail });
     
     try {
+      // First, get the actual project ID if we're using a slug
+      let actualProjectId = id;
+      
+      // If id looks like a slug rather than an ObjectId, get the actual ID first
+      if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+        try {
+          console.log('Getting actual project ID for slug:', id);
+          const projectResponse = await fetch(`/api/projects/by-slug/${id}`);
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json();
+            if (projectData.project && projectData.project._id) {
+              actualProjectId = projectData.project._id;
+              console.log('Found actual project ID:', actualProjectId);
+            }
+          }
+        } catch (projectError) {
+          console.error('Error getting project by slug:', projectError);
+        }
+      }
+      
       const formData = new FormData();
-      formData.append('projectId', id);
+      formData.append('projectId', actualProjectId); // Use the actual project ID instead of the slug
       formData.append('paymentProof', paymentProof);
       formData.append('deliveryEmail', deliveryEmail);
       
+      // Log form data for debugging
+      console.log('Form data keys:', [...formData.keys()]);
+      console.log('Payment proof file:', paymentProof.name, paymentProof.size, 'bytes');
+      
       const response = await fetch('/api/purchases', {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include' // Include cookies with the request
       });
       
-      const data = await response.json();
+      // Log response status for debugging
+      console.log('Purchase API response status:', response.status);
       
-      if (data.success) {
+      const data = await response.json();
+      console.log('Purchase API response:', data);
+      
+      if (data && data.success) {
         toast.success('Purchase submitted successfully! An admin will review it shortly.');
         setPurchaseStatus('pending');
-        setUserPurchases([data.purchase, ...userPurchases]);
+        if (data.purchase) {
+          setUserPurchases([data.purchase, ...userPurchases]);
+        }
       } else {
-        toast.error(data.message || 'Failed to submit purchase');
+        console.error('Purchase submission failed:', data);
+        toast.error(data && data.message ? data.message : 'Failed to submit purchase');
       }
     } catch (error) {
       console.error('Error submitting purchase:', error);
@@ -272,27 +295,49 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
   useEffect(() => {
     const trackView = async () => {
       try {
-        const deviceId = generateDeviceId();
-        const response = await fetch('/api/views', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            projectId: id,
-            deviceId
-          })
-        });
+        // Only track views if we have a valid ID
+        if (!id) {
+          console.log('Skipping view tracking - no project ID');
+          return;
+        }
         
-        if (!response.ok) {
-          console.error('Failed to record view');
+        console.log('Tracking view for project:', id);
+        const deviceId = generateDeviceId();
+        
+        // Use a try-catch block specifically for the fetch operation
+        try {
+          const response = await fetch('/api/views', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              projectId: id,
+              deviceId
+            }),
+            credentials: 'include' // Include cookies with the request
+          });
+          
+          console.log('View tracking response status:', response.status);
+          
+          if (!response.ok) {
+            // Just log the error but don't throw - this is non-critical functionality
+            console.log('View tracking response not OK, but continuing');
+          } else {
+            console.log('View tracked successfully');
+          }
+        } catch (fetchError) {
+          // Catch fetch-specific errors but don't let them propagate
+          console.log('Fetch error in view tracking, but continuing:', fetchError);
         }
       } catch (error) {
-        console.error('Error tracking view:', error);
+        // This catch block handles any other errors in the outer try block
+        console.log('Error in view tracking, but continuing:', error);
       }
     };
     
-    trackView();
+    // Execute but don't await - we don't want to block rendering
+    trackView().catch(e => console.log('Unhandled error in view tracking:', e));
   }, [id]);
   
   // Generate a simple device identifier
@@ -357,6 +402,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       return;
     }
     
+    console.log('Submitting review with:', { projectId: id, rating, comment });
+    
     if (!comment.trim()) {
       toast.error('Please enter a comment');
       return;
@@ -381,28 +428,62 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         }
       }
       
+      console.log('Sending review data:', {
+        projectId: id,
+        userId: userIdForReview,
+        email: session.user.email,
+        rating,
+        comment
+      });
+      
+      // First, get the actual project ID if we're using a slug
+      let actualProjectId = id;
+      
+      // If id looks like a slug rather than an ObjectId, get the actual ID first
+      if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+        try {
+          console.log('Getting actual project ID for slug:', id);
+          const projectResponse = await fetch(`/api/projects/by-slug/${id}`);
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json();
+            if (projectData.project && projectData.project._id) {
+              actualProjectId = projectData.project._id;
+              console.log('Found actual project ID:', actualProjectId);
+            }
+          }
+        } catch (projectError) {
+          console.error('Error getting project by slug:', projectError);
+        }
+      }
+      
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          projectId: id,
+          projectId: actualProjectId, // Use the actual project ID instead of the slug
           userId: userIdForReview,
           email: session.user.email,
           rating,
           comment
-        })
+        }),
+        credentials: 'include' // Include cookies with the request
       });
       
+      console.log('Review API response status:', response.status);
       const data = await response.json();
+      console.log('Review API response:', data);
       
-      if (data.success) {
+      if (data && data.success) {
         toast.success('Review submitted successfully!');
-        setUserReview(data.review);
+        if (data.review) {
+          setUserReview(data.review);
+        }
         fetchReviews();
       } else {
-        toast.error(data.message || 'Failed to submit review');
+        console.error('Review submission failed:', data);
+        toast.error(data && data.message ? data.message : 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import type { Session } from 'next-auth';
 import connectDB from '@/lib/mongodb';
 import Comment from '@/models/Comment';
+import mongoose from 'mongoose';
 import { GET as authOptions } from '../auth/[...nextauth]/route';
 
 // Extend the Session type to include the user properties we need
@@ -51,36 +52,89 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
     
+    // If projectId looks like a slug rather than an ObjectId, find the project by slug first
+    let actualProjectId = projectId;
+    
+    if (typeof projectId === 'string' && !mongoose.isValidObjectId(projectId)) {
+      console.log('ProjectId appears to be a slug:', projectId);
+      const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({}));
+      
+      try {
+        // Find the project by slug
+        const project = await Project.findOne({ slug: projectId });
+        
+        if (project) {
+          console.log('Found project by slug:', project._id);
+          // Use the actual ObjectId
+          actualProjectId = project._id;
+        } else {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Project not found with the provided slug' 
+          }, { status: 404 });
+        }
+      } catch (error) {
+        console.error('Error finding project by slug:', error);
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Error finding project',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
+      }
+    }
+    
     // Check for userId
     if (!userId) {
-      console.log('Session exists but no userId, using fallback...');
-      // In a real app, this would return an error, but for testing we'll create a dummy ID
-      // YOU SHOULD REMOVE THIS IN PRODUCTION
-      const dummyId = '64e0b5c2e174d33d5fb74be0'; // Replace with an actual user ID from your database
-      
-      // Create comment with dummy user ID
-      const newComment = await Comment.create({
-        content,
-        projectId,
-        parentId,
-        userId: dummyId,
-        isRead: false
-      });
-      
-      // Populate user information
-      const populatedComment = await newComment.populate('userId', 'name email');
-      
-      return NextResponse.json({ 
-        success: true, 
-        comment: populatedComment,
-        note: 'Created with dummy user ID for testing - remove in production'
-      }, { status: 201 });
+      // Try to find a user by email from the session
+      try {
+        const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({}));
+        
+        // Check if we have an email in the session
+        if (session?.user?.email) {
+          console.log('Looking up user by email:', session.user.email);
+          const userByEmail = await User.findOne({ email: session.user.email });
+          
+          if (userByEmail) {
+            console.log('Found user by email:', userByEmail._id);
+            
+            // Create comment with the found user ID
+            const newComment = await Comment.create({
+              content,
+              projectId: actualProjectId,
+              parentId,
+              userId: userByEmail._id,
+              isRead: false
+            });
+            
+            // Populate user information
+            const populatedComment = await newComment.populate('userId', 'name email');
+            
+            return NextResponse.json({ 
+              success: true, 
+              comment: populatedComment
+            }, { status: 201 });
+          }
+        }
+        
+        // If we get here, we couldn't find a user
+        return NextResponse.json({ 
+          success: false, 
+          message: 'User not found. Please log in again.'
+        }, { status: 401 });
+      } catch (userError) {
+        console.error('Error finding user:', userError);
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Error finding user',
+          error: userError instanceof Error ? userError.message : 'Unknown error'
+        }, { status: 500 });
+      }
     }
 
     // Normal flow - create comment with real user ID
     const newComment = await Comment.create({
       content,
-      projectId,
+      projectId: actualProjectId,
       parentId,
       userId,
       isRead: false
@@ -117,7 +171,38 @@ export async function GET(request: NextRequest) {
     const query: any = {};
     
     if (projectId) {
-      query.projectId = projectId;
+      // If projectId looks like a slug rather than an ObjectId, find the project by slug first
+      if (typeof projectId === 'string' && !mongoose.isValidObjectId(projectId)) {
+        console.log('ProjectId appears to be a slug in GET comments:', projectId);
+        const Project = mongoose.models.Project || mongoose.model('Project', new mongoose.Schema({}));
+        
+        try {
+          // Find the project by slug
+          const project = await Project.findOne({ slug: projectId });
+          
+          if (project) {
+            console.log('Found project by slug in GET comments:', project._id);
+            // Use the actual ObjectId
+            query.projectId = project._id;
+          } else {
+            console.log('No project found with slug in GET comments:', projectId);
+            // Return empty result if no project found
+            return NextResponse.json({
+              success: true,
+              comments: []
+            });
+          }
+        } catch (error) {
+          console.error('Error finding project by slug in GET comments:', error);
+          // Return empty result if error
+          return NextResponse.json({
+            success: true,
+            comments: []
+          });
+        }
+      } else {
+        query.projectId = projectId;
+      }
     }
     
     if (unread === 'true') {
