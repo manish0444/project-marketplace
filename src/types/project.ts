@@ -20,6 +20,7 @@ export interface Project {
   githubUrl?: string;
   projectFile?: string; // Path to downloadable zip file
   paymentQrCode?: string; // Payment QR code image
+  forSale: boolean; // Whether the project is for sale or just for showcase
   createdAt: Date;
   updatedAt: Date;
 }

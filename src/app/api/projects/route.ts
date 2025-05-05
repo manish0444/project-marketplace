@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     const { getServerSession } = await import('next-auth/next');
     const authOptions = await import('../auth/[...nextauth]/route');
-    
+
     const session = await getServerSession(authOptions.GET);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -27,15 +27,15 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
     const formData = await request.formData();
-    
+
     // Log form data keys for debugging
     console.log('Form data keys:', [...formData.keys()]);
-    
+
     // Handle file uploads
     const imageFiles = formData.getAll('imageFiles');
     const { saveFile } = await import('@/lib/upload');
     const imageUrls = [];
-    
+
     for (const file of imageFiles) {
       if (file instanceof File) {
         console.log(`Processing image file: ${file.name}, size: ${file.size} bytes`);
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         }
       }
     }
-    
+
     // Handle project file upload (ZIP)
     let projectFilePath = null;
     const projectFile = formData.get('projectFile');
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         // Continue even if project file upload fails
       }
     }
-    
+
     // Handle QR code upload
     let qrCodePath = null;
     const qrCodeFile = formData.get('qrCodeFile');
@@ -90,7 +90,8 @@ export async function POST(request: NextRequest) {
       demoUrl: formData.get('demoUrl'),
       githubUrl: formData.get('githubUrl'),
       projectFile: projectFilePath,
-      paymentQrCode: qrCodePath
+      paymentQrCode: qrCodePath,
+      forSale: formData.get('forSale') === 'true'
     };
 
     const project = await Project.create(projectData);
@@ -100,11 +101,11 @@ export async function POST(request: NextRequest) {
     // Provide more detailed error information
     const message = error instanceof Error ? error.message : 'Failed to create project';
     const errorDetails = error instanceof Error ? error.stack : 'No stack trace available';
-    
-    return NextResponse.json({ 
-      error: message, 
+
+    return NextResponse.json({
+      error: message,
       details: errorDetails,
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString()
     }, { status: 500 });
   }
 }
@@ -113,7 +114,7 @@ export async function PUT(request: NextRequest) {
   try {
     const { getServerSession } = await import('next-auth/next');
     const authOptions = await import('../auth/[...nextauth]/route');
-    
+
     const session = await getServerSession(authOptions.GET);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -121,12 +122,12 @@ export async function PUT(request: NextRequest) {
 
     await connectDB();
     const formData = await request.formData();
-    
+
     // Handle file uploads
     const imageFiles = formData.getAll('imageFiles');
     const { saveFile } = await import('@/lib/upload');
     const uploadedImageUrls = [];
-    
+
     for (const file of imageFiles) {
       if (file instanceof File) {
         const imageUrl = await saveFile(file);
@@ -140,7 +141,7 @@ export async function PUT(request: NextRequest) {
     if (!existingProject) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
-    
+
     // Handle project file upload (ZIP)
     let projectFilePath = existingProject.projectFile;
     const projectFile = formData.get('projectFile');
@@ -149,7 +150,7 @@ export async function PUT(request: NextRequest) {
     } else if (formData.get('existingProjectFile')) {
       projectFilePath = formData.get('existingProjectFile') as string;
     }
-    
+
     // Handle QR code upload
     let qrCodePath = existingProject.paymentQrCode;
     const qrCodeFile = formData.get('qrCodeFile');
@@ -175,6 +176,7 @@ export async function PUT(request: NextRequest) {
       githubUrl: formData.get('githubUrl'),
       projectFile: projectFilePath,
       paymentQrCode: qrCodePath,
+      forSale: formData.get('forSale') === 'true',
       updatedAt: new Date()
     };
 
@@ -200,7 +202,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const { getServerSession } = await import('next-auth/next');
     const authOptions = await import('../auth/[...nextauth]/route');
-    
+
     const session = await getServerSession(authOptions.GET);
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

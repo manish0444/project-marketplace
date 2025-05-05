@@ -20,7 +20,7 @@ interface ProjectDetailsClientProps {
 
 export default function ProjectDetailsClient({ project, id }: ProjectDetailsClientProps) {
   const { data: session } = useSession();
-  const router = useRouter();
+
   const [purchaseStatus, setPurchaseStatus] = useState<string | null>(null);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
@@ -58,12 +58,12 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         setPurchaseStatus(null);
         return;
       }
-      
+
       try {
         const response = await fetch(`/api/purchases?projectId=${id}`, {
           credentials: 'include'
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.purchases.length > 0) {
@@ -71,7 +71,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               const purchaseUserId = typeof purchase.userId === 'object' ? purchase.userId._id : purchase.userId;
               return purchaseUserId === session.user.id;
             });
-            
+
             setUserPurchases(currentUserPurchases);
             if (currentUserPurchases.length > 0) {
               setPurchaseStatus(currentUserPurchases[0].status);
@@ -89,10 +89,10 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         setPurchaseStatus(null);
       }
     }
-    
+
     fetchUserPurchases();
   }, [session, id]);
-  
+
   // Initialize delivery email from session when component mounts
   useEffect(() => {
     if (session?.user?.email) {
@@ -115,7 +115,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         console.error('Error fetching view count:', error);
       }
     };
-    
+
     fetchViewCount();
   }, [id]);
 
@@ -124,7 +124,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
       setPaymentProof(file);
-      
+
       const reader = new FileReader();
       reader.onload = () => {
         setPaymentProofPreview(reader.result as string);
@@ -132,7 +132,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       reader.readAsDataURL(file);
     }
   };
-  
+
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: {
@@ -140,7 +140,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
     },
     maxFiles: 1
   });
-  
+
   // Email confirmation handler
   const handleEmailConfirmation = (confirm: boolean) => {
     setIsEmailConfirmed(confirm);
@@ -158,24 +158,24 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       toast.error('Please log in to purchase this project');
       return;
     }
-    
+
     if (!paymentProof) {
       toast.error('Please upload payment proof');
       return;
     }
-    
+
     if (!deliveryEmail || !deliveryEmail.match(/^[\w-\.]+@gmail\.com$/)) {
       toast.error('Please enter a valid Gmail address for delivery');
       return;
     }
-    
+
     setIsLoading(true);
     console.log('Submitting purchase with:', { projectId: id, paymentProofName: paymentProof.name, deliveryEmail });
-    
+
     try {
       // First, get the actual project ID if we're using a slug
       let actualProjectId = id;
-      
+
       // If id looks like a slug rather than an ObjectId, get the actual ID first
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
         try {
@@ -192,28 +192,28 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
           console.error('Error getting project by slug:', projectError);
         }
       }
-      
+
       const formData = new FormData();
       formData.append('projectId', actualProjectId); // Use the actual project ID instead of the slug
       formData.append('paymentProof', paymentProof);
       formData.append('deliveryEmail', deliveryEmail);
-      
+
       // Log form data for debugging
       console.log('Form data keys:', [...formData.keys()]);
       console.log('Payment proof file:', paymentProof.name, paymentProof.size, 'bytes');
-      
+
       const response = await fetch('/api/purchases', {
         method: 'POST',
         body: formData,
         credentials: 'include' // Include cookies with the request
       });
-      
+
       // Log response status for debugging
       console.log('Purchase API response status:', response.status);
-      
+
       const data = await response.json();
       console.log('Purchase API response:', data);
-      
+
       if (data && data.success) {
         toast.success('Purchase submitted successfully! An admin will review it shortly.');
         setPurchaseStatus('pending');
@@ -231,25 +231,25 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       setIsLoading(false);
     }
   };
-  
+
   // Handle download request
   const handleDownload = async () => {
     if (!session) {
       toast.error('Please log in to download this project');
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       const hasApprovedPurchase = userPurchases.some((p: Purchase) => p.status === 'approved');
-      
+
       if (!hasApprovedPurchase) {
         try {
           const response = await fetch(`/api/purchases?projectId=${id}`, {
             credentials: 'include'
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.purchases.length > 0) {
@@ -257,7 +257,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                 const purchaseUserId = typeof purchase.userId === 'object' ? purchase.userId._id : purchase.userId;
                 return purchaseUserId === session.user.id;
               });
-              
+
               setUserPurchases(currentUserPurchases);
               const nowHasApprovedPurchase = currentUserPurchases.some((p: Purchase) => p.status === 'approved');
               if (!nowHasApprovedPurchase) {
@@ -279,7 +279,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       const downloadUrl = `/api/downloads?projectId=${id}&direct=true`;
       toast.success('Download starting!');
       window.location.href = downloadUrl;
-      
+
     } catch (error) {
       console.error('Error downloading project:', error);
       toast.error('Failed to download project');
@@ -287,7 +287,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       setIsLoading(false);
     }
   };
-  
+
   // Determine the latest purchase and its status
   const latestPurchase = userPurchases.length > 0 ? userPurchases[0] : null;
 
@@ -300,10 +300,10 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
           console.log('Skipping view tracking - no project ID');
           return;
         }
-        
+
         console.log('Tracking view for project:', id);
         const deviceId = generateDeviceId();
-        
+
         // Use a try-catch block specifically for the fetch operation
         try {
           const response = await fetch('/api/views', {
@@ -317,9 +317,9 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
             }),
             credentials: 'include' // Include cookies with the request
           });
-          
+
           console.log('View tracking response status:', response.status);
-          
+
           if (!response.ok) {
             // Just log the error but don't throw - this is non-critical functionality
             console.log('View tracking response not OK, but continuing');
@@ -335,11 +335,11 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         console.log('Error in view tracking, but continuing:', error);
       }
     };
-    
+
     // Execute but don't await - we don't want to block rendering
     trackView().catch(e => console.log('Unhandled error in view tracking:', e));
   }, [id]);
-  
+
   // Generate a simple device identifier
   const generateDeviceId = () => {
     const platform = navigator.platform;
@@ -347,7 +347,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
     const screenWidth = window.screen.width;
     const screenHeight = window.screen.height;
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    
+
     const deviceStr = `${platform}-${userAgent}-${screenWidth}x${screenHeight}-${timeZone}`;
     let hash = 0;
     for (let i = 0; i < deviceStr.length; i++) {
@@ -366,11 +366,11 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         const data = await response.json();
         if (data.success) {
           setReviews(data.reviews);
-          
+
           if (session?.user) {
             const userReview = data.reviews.find(
-              (review: Review) => 
-                typeof review.userId === 'object' && 
+              (review: Review) =>
+                typeof review.userId === 'object' &&
                 review.userId._id === session.user.id
             );
             if (userReview) {
@@ -385,7 +385,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       console.error('Error fetching reviews:', error);
     }
   }, [id, session]);
-  
+
   useEffect(() => {
     fetchReviews();
   }, [fetchReviews]);
@@ -396,24 +396,24 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       toast.error('Please log in to submit a review');
       return;
     }
-    
+
     if (rating === 0) {
       toast.error('Please select a rating');
       return;
     }
-    
+
     console.log('Submitting review with:', { projectId: id, rating, comment });
-    
+
     if (!comment.trim()) {
       toast.error('Please enter a comment');
       return;
     }
-    
+
     setIsSubmittingReview(true);
-    
+
     try {
       let userIdForReview = session.user.id;
-      
+
       if (!userIdForReview && session.user.email) {
         try {
           const purchaseResponse = await fetch(`/api/purchases?email=${encodeURIComponent(session.user.email)}`);
@@ -427,7 +427,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
           console.error('Error finding user ID from purchases:', purchaseError);
         }
       }
-      
+
       console.log('Sending review data:', {
         projectId: id,
         userId: userIdForReview,
@@ -435,10 +435,10 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         rating,
         comment
       });
-      
+
       // First, get the actual project ID if we're using a slug
       let actualProjectId = id;
-      
+
       // If id looks like a slug rather than an ObjectId, get the actual ID first
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
         try {
@@ -455,7 +455,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
           console.error('Error getting project by slug:', projectError);
         }
       }
-      
+
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: {
@@ -470,11 +470,11 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         }),
         credentials: 'include' // Include cookies with the request
       });
-      
+
       console.log('Review API response status:', response.status);
       const data = await response.json();
       console.log('Review API response:', data);
-      
+
       if (data && data.success) {
         toast.success('Review submitted successfully!');
         if (data.review) {
@@ -493,7 +493,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
     }
   };
 
-  const tabs = [
+  // Define tabs based on whether the project is for sale or not
+  const baseTabs = [
     {
       name: 'Overview',
       icon: (
@@ -503,7 +504,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
       ),
       content: (
         <div className="bg-white/50 dark:bg-gray-900/50 p-3 sm:p-4 md:p-6 rounded-xl space-y-4 sm:space-y-6 backdrop-blur-sm">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -521,8 +522,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               {project.description}
             </p>
           </motion.div>
-    
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
@@ -549,8 +550,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               ))}
             </div>
           </motion.div>
-    
-          <motion.div 
+
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
@@ -566,7 +567,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
             </div>
             <ul className="space-y-2 sm:space-y-3">
               {project.features.map((feature, index) => (
-                <motion.li 
+                <motion.li
                   key={feature}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -583,9 +584,9 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               ))}
             </ul>
           </motion.div>
-    
-          {(project.demoUrl || project.githubUrl) && (
-            <motion.div 
+
+          {(project.demoUrl || (project.githubUrl && !project.forSale)) && (
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
@@ -606,7 +607,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                   View Demo
                 </motion.a>
               )}
-              {project.githubUrl && (
+              {project.githubUrl && !project.forSale && (
                 <motion.a
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -626,7 +627,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
         </div>
       )
     },
-    {
+    // Purchase tab - only included if project is for sale
+    ...(project.forSale ? [{
       name: 'Purchase',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -642,7 +644,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                 <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">Purchase This Project</h2>
                 <p className="mt-1 text-sm sm:text-base text-gray-600 dark:text-gray-300">Get full access to the source code and documentation</p>
               </div>
-              
+
               {!session ? (
                 <div className="text-center p-4 sm:p-8">
                   <div className="mx-auto flex h-10 sm:h-12 w-10 sm:w-12 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 mb-3 sm:mb-4">
@@ -651,7 +653,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     </svg>
                   </div>
                   <p className="mb-3 sm:mb-4 text-sm sm:text-base text-gray-600 dark:text-gray-300">You need to log in to purchase this project</p>
-                  <Link 
+                  <Link
                     href="/api/auth/signin"
                     className="inline-flex items-center justify-center gap-1 sm:gap-2 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 px-4 sm:px-5 py-2 sm:py-2.5 text-xs sm:text-sm font-medium text-white shadow-sm hover:shadow-md transition-all"
                   >
@@ -667,7 +669,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                       {/* Payment QR Code */}
                       {project.paymentQrCode ? (
-                        <motion.div 
+                        <motion.div
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           className="bg-white dark:bg-gray-800 p-3 sm:p-5 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm"
@@ -682,8 +684,8 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                           </div>
                           <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">Scan this QR code to make payment</p>
                           <div className="max-w-xs mx-auto bg-white dark:bg-gray-700 p-2 sm:p-3 rounded-lg border border-gray-200 dark:border-gray-600">
-                            <Image 
-                              src={getImageSrc(project.paymentQrCode)} 
+                            <Image
+                              src={getImageSrc(project.paymentQrCode)}
                               alt="Payment QR Code"
                               width={200}
                               height={200}
@@ -717,7 +719,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Payment Proof Upload */}
                       <motion.div
                         initial={{ opacity: 0, x: 20 }}
@@ -733,12 +735,12 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Submit Payment Proof</h3>
                         </div>
                         <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300 mb-3 sm:mb-4">Upload a screenshot of your payment confirmation</p>
-                        
+
                         {paymentProofPreview ? (
                           <div className="relative w-full h-32 sm:h-48 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg mb-3 sm:mb-4 overflow-hidden">
-                            <Image 
-                              src={paymentProofPreview} 
-                              alt="Payment Proof" 
+                            <Image
+                              src={paymentProofPreview}
+                              alt="Payment Proof"
                               fill
                               className="object-contain rounded-lg"
                             />
@@ -767,25 +769,25 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                             <p className="mt-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">Drag and drop an image, or click to browse</p>
                           </div>
                         )}
-                        
+
                         <div className="mb-3 sm:mb-4">
                           <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 sm:mb-2" htmlFor="delivery-email">Delivery Email:</label>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <input 
-                              type="email" 
-                              id="delivery-email" 
-                              value={deliveryEmail} 
-                              onChange={handleEmailChange} 
-                              className="block w-full p-2 sm:p-2.5 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all" 
+                            <input
+                              type="email"
+                              id="delivery-email"
+                              value={deliveryEmail}
+                              onChange={handleEmailChange}
+                              className="block w-full p-2 sm:p-2.5 text-sm text-gray-700 dark:text-gray-300 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                               placeholder="your-email@gmail.com"
                               disabled={isEmailConfirmed}
                             />
                             {!isEmailConfirmed ? (
-                              <motion.button 
+                              <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                type="button" 
-                                onClick={() => handleEmailConfirmation(true)} 
+                                type="button"
+                                onClick={() => handleEmailConfirmation(true)}
                                 className="whitespace-nowrap px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:shadow-md disabled:opacity-50 transition-all text-xs sm:text-sm mt-1 sm:mt-0"
                                 disabled={!deliveryEmail || !deliveryEmail.match(/^[\w-\.]+@gmail\.com$/)}
                               >
@@ -794,9 +796,9 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                             ) : (
                               <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-green-100 dark:border-green-800 mt-1 sm:mt-0">
                                 <span className="text-green-600 dark:text-green-400 text-xs sm:text-sm">✓ Confirmed</span>
-                                <button 
-                                  type="button" 
-                                  onClick={() => handleEmailConfirmation(false)} 
+                                <button
+                                  type="button"
+                                  onClick={() => handleEmailConfirmation(false)}
                                   className="text-xs text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                 >
                                   Change
@@ -808,7 +810,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                             <p className="mt-1 text-xs sm:text-sm text-red-500">Please enter a valid Gmail address</p>
                           )}
                         </div>
-                        
+
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
@@ -847,23 +849,23 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                           </svg>
                         )}
                         <p className="font-semibold text-xs sm:text-sm">
-                          {purchaseStatus === 'approved' ? 'Purchase Approved' : 
-                           purchaseStatus === 'rejected' ? 'Purchase Rejected' : 
+                          {purchaseStatus === 'approved' ? 'Purchase Approved' :
+                           purchaseStatus === 'rejected' ? 'Purchase Rejected' :
                            'Purchase Pending Approval'}
                         </p>
                       </div>
-                      
+
                       {purchaseStatus === 'pending' && (
                         <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-4 sm:mb-6">Your purchase is being reviewed by an admin. Please check back later.</p>
                       )}
-                      
+
                       {purchaseStatus === 'rejected' && latestPurchase?.feedback && (
                         <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-800">
                           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mb-1 sm:mb-2 font-medium">Feedback from admin:</p>
                           <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">{latestPurchase.feedback}</p>
                         </div>
                       )}
-                      
+
                       {purchaseStatus === 'approved' && (
                         <div>
                           <div className="p-4 sm:p-6 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-800 mb-4 sm:mb-6">
@@ -885,7 +887,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                           </div>
                         </div>
                       )}
-                      
+
                       {purchaseStatus === 'rejected' && (
                         <motion.button
                           whileHover={{ scale: 1.05 }}
@@ -936,7 +938,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
           )}
         </div>
       )
-    },
+    }] : []),
     {
       name: 'Reviews',
       content: (
@@ -951,7 +953,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               </div>
             )}
           </div>
-    
+
           {reviews.length > 0 ? (
             <div className="space-y-4 sm:space-y-6">
               {reviews.map((review) => (
@@ -984,7 +986,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                         </div>
                       </div>
                     </div>
-    
+
                     <div className="flex flex-col items-start sm:items-end">
                       <div className="flex items-center mb-1">
                         <div className="h-4 sm:h-6 w-20 sm:w-24 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mr-2">
@@ -1006,7 +1008,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                       </div>
                     </div>
                   </div>
-    
+
                   <p className="text-gray-700 italic whitespace-pre-line dark:text-gray-300 text-sm sm:text-base">
                     "{review.comment}"
                   </p>
@@ -1024,7 +1026,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
               <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Be the first to share your thoughts about this project!</p>
             </div>
           )}
-    
+
           {session && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1069,7 +1071,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     {rating === 5 && 'Excellent! 🤩'}
                   </div>
                 </div>
-    
+
                 <div className="mb-4 sm:mb-6">
                   <label className="block text-base sm:text-lg font-medium text-gray-700 dark:text-gray-300 mb-2 sm:mb-3">Your Review:</label>
                   <textarea
@@ -1079,7 +1081,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     placeholder="Share your experience with this project..."
                   />
                 </div>
-    
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -1159,16 +1161,19 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
     }
   ];
 
+  // Combine all tabs
+  const tabs = [...baseTabs];
+
   return (
-   
-    
-  
-    
-     
+
+
+
+
+
         <div className="bg-gradient-to-br dark:from-gray-900 dark:to-gray-800 from-gray-50 to-gray-100 min-h-screen py-4 sm:py-8">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Back Link - Made more touch-friendly for mobile */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-4 sm:mb-6"
@@ -1181,9 +1186,9 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                 Back to Projects
               </Link>
             </motion.div>
-        
+
             {/* Project Card */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
@@ -1206,12 +1211,12 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                   </div>
                 )}
               </div>
-        
+
               {/* Project Meta */}
               <div className="p-4 sm:p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <motion.h1 
+                    <motion.h1
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
@@ -1219,7 +1224,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     >
                       {project.title}
                     </motion.h1>
-                    <motion.p 
+                    <motion.p
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.1 }}
@@ -1228,7 +1233,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                       ${project.price.toLocaleString()}
                     </motion.p>
                   </div>
-        
+
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -1243,7 +1248,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                     </span>
                   </motion.div>
                 </div>
-        
+
                 {/* Tabbed Content - Mobile-friendly tabs */}
                 <div className="mt-6 sm:mt-8">
                   <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
@@ -1263,7 +1268,7 @@ export default function ProjectDetailsClient({ project, id }: ProjectDetailsClie
                         </Tab>
                       ))}
                     </Tab.List>
-        
+
                     <Tab.Panels className="mt-4">
                       {tabs.map((tab, idx) => (
                         <Tab.Panel

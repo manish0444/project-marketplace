@@ -40,8 +40,9 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
     seoDescription: project?.description || '',
     seoKeywords: '',
     socialMediaDescription: '',
+    forSale: project?.forSale !== undefined ? project.forSale : true,
   });
-  
+
   // SEO generation state
   const [isSeoGenerating, setIsSeoGenerating] = useState(false);
   const [seoData, setSeoData] = useState<SeoGenerationResponse | null>(null);
@@ -140,15 +141,15 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
         toast.error('Description is required');
         return;
       }
-      
+
       // If SEO data is available, consider using it for title/description if not set manually
       if (!formData.seoTitle.trim() && formData.title.trim()) {
         formData.seoTitle = formData.title;
       }
-      
+
       if (!formData.seoDescription.trim() && formData.description.trim()) {
         // Truncate description to 160 chars for SEO if needed
-        formData.seoDescription = formData.description.length > 160 ? 
+        formData.seoDescription = formData.description.length > 160 ?
           `${formData.description.substring(0, 157)}...` : formData.description;
       }
 
@@ -245,25 +246,25 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
     }
 
     setIsSeoGenerating(true);
-    
+
     try {
       const prompt = `
       You are an SEO expert specializing in technology and software projects. Generate professional, marketing-focused SEO content for the following project.
       Respond ONLY with a valid JSON object containing the requested fields.
-      
+
       Project Title: ${formData.title}
       Project Description: ${formData.description}
       Project Type: ${formData.projectType}
       Technologies: ${formData.technologies.join(', ')}
       Features: ${formData.features.join(', ')}
-      
+
       IMPORTANT INSTRUCTIONS:
       1. Create a title that is DIFFERENT from the original project title but captures its essence and includes high-value SEO keywords
       2. Write a description that is more marketing-focused than the original description
       3. Focus on benefits and unique selling points in the description
       4. Include relevant industry terms and technical keywords
       5. Make the social media description engaging and shareable
-      
+
       The response must be a valid JSON object with the following structure and nothing else:
       {
         "title": "A professional, SEO-optimized title under 60 characters that is DIFFERENT from the original title",
@@ -298,7 +299,7 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
       if (result.success && result.data) {
         const seoContent = result.data as SeoGenerationResponse;
         setSeoData(seoContent);
-        
+
         // Update form data with AI-generated SEO content
         setFormData(prev => ({
           ...prev,
@@ -308,7 +309,7 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
           seoKeywords: seoContent.keywords.join(', '),
           socialMediaDescription: seoContent.socialMediaDescription,
         }));
-        
+
         toast.success('SEO content generated successfully!');
       } else {
         throw new Error('Invalid response format');
@@ -336,7 +337,7 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
   }
 
   return (
-    <motion.form 
+    <motion.form
       onSubmit={handleSubmit}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -374,7 +375,7 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
           />
         </div>
 
-        {/* Price & Project Type */}
+        {/* Price, Project Type & For Sale */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-900">
           {/* Price */}
           <div className="space-y-2">
@@ -414,11 +415,39 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
           </div>
         </div>
 
+        {/* For Sale Toggle */}
+        <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-medium text-gray-900 dark:text-gray-100">For Sale</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Is this project available for purchase or just for showcase?
+              </p>
+            </div>
+            <label htmlFor="forSale" className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                id="forSale"
+                className="sr-only"
+                checked={formData.forSale}
+                onChange={(e) => setFormData({ ...formData, forSale: e.target.checked })}
+              />
+              <div
+                onClick={() => setFormData({ ...formData, forSale: !formData.forSale })}
+                className={`w-11 h-6 bg-gray-200 rounded-full dark:bg-gray-700 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 ${formData.forSale ? 'bg-indigo-600 dark:bg-indigo-500 after:translate-x-full after:border-white' : ''}`}
+              ></div>
+              <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">
+                {formData.forSale ? 'For Sale' : 'Showcase Only'}
+              </span>
+            </label>
+          </div>
+        </div>
+
         {/* Images */}
         <div className="space-y-2 bg-gray-50 dark:bg-gray-900">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Project Images</label>
           <p className="text-sm text-gray-500 mb-3 dark:text-gray-400">Upload up to 10 images showcasing your project</p>
-          
+
           <div
             {...getRootProps()}
             className={`p-8 border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-200
@@ -444,8 +473,8 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
           {previews.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 dark:bg-gray-900">
               {previews.map((preview, index) => (
-                <motion.div 
-                  key={index} 
+                <motion.div
+                  key={index}
                   className="relative group rounded-lg overflow-hidden shadow-sm dark:bg-gray-900"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -482,11 +511,11 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
         <div className="space-y-2 bg-gray-50 dark:bg-gray-900">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Technologies Used</label>
           <p className="text-sm text-gray-500 mb-3 dark:text-gray-400">List the technologies used in this project</p>
-          
+
           <div className="space-y-3">
             {formData.technologies.map((tech, index) => (
-              <motion.div 
-                key={index} 
+              <motion.div
+                key={index}
                 className="flex gap-2 items-center"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -529,11 +558,11 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Key Features</label>
           <p className="text-sm text-gray-500 mb-3 dark:text-gray-400">Highlight the main features of your project</p>
-          
+
           <div className="space-y-3 dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300">
             {formData.features.map((feature, index) => (
-              <motion.div 
-                key={index} 
+              <motion.div
+                key={index}
                 className="flex gap-2 items-center dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -734,7 +763,7 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
             </div>
           </div>
         </div>
-       
+
 
         {/* QR Code Upload */}
         <div className="space-y-2 dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300 ">
@@ -744,19 +773,19 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
           <p className="text-sm text-gray-500 mb-3 dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300">
             Upload a QR code image for payment processing (max 5MB)
           </p>
-          
-          <motion.div 
+
+          <motion.div
             whileHover={{ scale: 1.005 }}
             className="p-6 border-2 border-dashed rounded-xl bg-gray-50 transition-all duration-200 hover:border-indigo-400 border-gray-300 dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300"
           >
             {qrCodePreview ? (
               <div className="flex flex-col items-center space-y-4 dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300">
                 <div className="relative w-48 h-48 bg-white p-4 rounded-lg shadow-sm dark:bg-gray-900 dark:border-gray-400 dark:text-gray-300">
-                  <Image 
-                    src={qrCodePreview} 
-                    alt="Payment QR Code" 
+                  <Image
+                    src={qrCodePreview}
+                    alt="Payment QR Code"
                     fill
-                    className="object-contain" 
+                    className="object-contain"
                   />
                 </div>
                 <button
@@ -778,12 +807,12 @@ export default function ProjectForm({ project, mode }: ProjectFormProps) {
                 <div className="flex text-sm text-gray-600 dark:text-gray-400 dark:bg-gray-900 dark:border-gray-400 ">
                   <label htmlFor="qr-code-file" className="relative cursor-pointer rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none dark:text-indigo-400">
                     <span>Upload QR code</span>
-                    <input 
-                      id="qr-code-file" 
-                      name="qr-code-file" 
-                      type="file" 
-                      className="sr-only" 
-                      accept="image/*" 
+                    <input
+                      id="qr-code-file"
+                      name="qr-code-file"
+                      type="file"
+                      className="sr-only"
+                      accept="image/*"
                       onChange={handleQrCodeChange}
                     />
                   </label>

@@ -86,6 +86,11 @@ const projectSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  // Whether the project is for sale or just for showcase
+  forSale: {
+    type: Boolean,
+    default: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -108,13 +113,13 @@ function generateSlug(title: string): string {
 // Update the timestamp and generate slug on save
 projectSchema.pre('save', function(next) {
   this.updatedAt = new Date();
-  
+
   // Generate slug from title if not already set
   if (this.title && (!this.slug || this.isModified('title'))) {
     const baseSlug = generateSlug(this.title);
     this.slug = baseSlug;
   }
-  
+
   next();
 });
 
